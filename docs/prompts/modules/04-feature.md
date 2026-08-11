@@ -34,8 +34,12 @@ Baca @CLAUDE.md — bagian "Conventions". Prasyarat: :core:data sudah meng-expos
 Module ini TIDAK punya Retrofit/Gson di classpath, dan itu disengaja. Kalau butuh
 sesuatu dari network, ambil lewat `<X>Repository` — jangan menambah dependency.
 
-`viewBinding = true` sudah aktif. Compose tidak dipakai dan tidak boleh ditambahkan
-(butuh plugin Kotlin, BOM, dan buildFeatures.compose yang semuanya tidak ada di sini).
+`viewBinding = true` sudah aktif, jadi prompt ini menghasilkan layar berbasis XML.
+
+> **Catatan:** Compose sekarang **sudah aktif** di `:feature` (BOM, Material 3, dan plugin
+> compiler-nya sudah terpasang). Kalau layarnya mau dibuat dengan Compose, jangan pakai file
+> ini — pakai skill `compose-feature-screen`, yang sudah memuat layering Route/Screen/component
+> dan panduan API guidelines-nya. File ini tetap dipakai untuk layar XML.
 
 ## Yang dibangun
 

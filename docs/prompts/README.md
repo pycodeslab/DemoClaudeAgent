@@ -61,13 +61,28 @@ Empat hal yang paling menentukan hasil, dan paling sering dilewatkan:
    Gradle konkret dan daftar test yang harus ditulis. Tanpa ini, Anda yang jadi loop
    verifikasinya dan setiap kesalahan menunggu Anda menyadarinya.
 2. **Batas scope yang eksplisit.** Bagian "Di luar scope" ada di setiap file. Tanpa itu
-   Claude cenderung menambah Hilt, Compose, atau kotlinx.serialization "sekalian" —
-   yang semuanya justru merusak setup toolchain repo ini.
+   Claude cenderung menambah Hilt atau kotlinx.serialization "sekalian" — yang justru
+   merusak setup toolchain repo ini. (Compose adalah pengecualian yang sudah disiapkan:
+   lihat catatan di bawah.)
 3. **Menunjuk sumber, bukan menjelaskan ulang.** Prompt menyebut `@CLAUDE.md` dan
    `@gradle/libs.versions.toml` alih-alih menyalin isinya, sehingga tidak ada dua
    versi kebenaran yang bisa berbeda.
 4. **Bukti, bukan klaim.** Setiap file meminta output perintah ditampilkan, bukan
    kesimpulan "sudah berhasil".
+
+## Compose: pakai skill, bukan prompt di sini
+
+Prompt library ini menghasilkan layar **XML + view binding**. Untuk layar **Jetpack Compose**
+di `:feature`, pakai skill `compose-feature-screen`
+([`.claude/skills/compose-feature-screen/`](../../.claude/skills/compose-feature-screen/)):
+
+```
+buatkan screen <X> dengan Compose di :feature
+```
+
+Skill itu memuat layering Route → Screen (stateless) → component, panduan
+[Compose component API guidelines](https://android.googlesource.com/platform/frameworks/support/+/androidx-main/compose/docs/compose-component-api-guidelines.md),
+dan wiring build-nya. Contoh jadi: paket `com.sample.demo.feature.postlist`.
 
 ## Catatan toolchain
 
