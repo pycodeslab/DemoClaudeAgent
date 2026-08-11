@@ -10,6 +10,7 @@ disusun mengikuti [best practices Claude Code](https://code.claude.com/docs/en/b
 | ingin satu prompt untuk seluruh feature end-to-end | [`new-feature.template.md`](new-feature.template.md) |
 | ingin melihat template itu dalam bentuk terisi | [`example-post-list.md`](example-post-list.md) |
 | ingin mengerjakan per module, satu sesi per layer | [`modules/`](modules/) — lihat di bawah |
+| ingin memakai skill (`compose-feature-screen`, `core-data-repository`, `wire-feature-to-data`) | [`skills/`](skills/) — contoh terisi: layar Login |
 
 ### Satu prompt vs per module
 
@@ -83,6 +84,9 @@ buatkan screen <X> dengan Compose di :feature
 Skill itu memuat layering Route → Screen (stateless) → component, panduan
 [Compose component API guidelines](https://android.googlesource.com/platform/frameworks/support/+/androidx-main/compose/docs/compose-component-api-guidelines.md),
 dan wiring build-nya. Contoh jadi: paket `com.sample.demo.feature.postlist`.
+
+Untuk feature Compose yang utuh sampai ke data layer, ketiga skill dipakai berurutan —
+prompt siap pakai dan urutan eksekusinya ada di [`skills/`](skills/).
 
 ## Catatan toolchain
 
