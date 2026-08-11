@@ -11,6 +11,7 @@ disusun mengikuti [best practices Claude Code](https://code.claude.com/docs/en/b
 | ingin melihat template itu dalam bentuk terisi | [`example-post-list.md`](example-post-list.md) |
 | ingin mengerjakan per module, satu sesi per layer | [`modules/`](modules/) — lihat di bawah |
 | ingin memakai skill (`compose-feature-screen`, `core-data-repository`, `wire-feature-to-data`) | [`skills/`](skills/) — contoh terisi: layar Login |
+| ingin hasil setara skill tapi tanpa memanggil skill | [`manual/`](manual/) — layar Login, aturannya ditulis di dalam prompt |
 
 ### Satu prompt vs per module
 
