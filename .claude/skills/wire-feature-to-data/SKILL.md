@@ -123,8 +123,10 @@ Gradle will not catch any of these:
 
 - **`:feature` names only the repository interface, its factory function, and domain models.** No
   `<X>Dto`, no Retrofit type, nothing from `com.sample.demo.core.network`. `:core:data` depends on
-  `:core:network` with `implementation` precisely so this stays true; `grep -r "core.network" feature/src/`
-  must come back empty.
+  `:core:network` with `implementation` precisely so this stays true. Check the imports, not every
+  mention — `grep -rn "^import com.sample.demo.core.network" feature/src/` must come back empty. A
+  plain `grep "core.network"` also hits the KDoc these skills tell you to write ("waiting on
+  `:core:network`"), so it reports a leak that is not there.
 - **`UiState` never holds a domain model.** `posts` stays `List<PostUiModel>`. Putting `List<Post>`
   in the state saves the mapper today and welds the screen to the domain shape forever.
 - **The domain model does not grow a UI concern.** If the screen needs a formatted date or a

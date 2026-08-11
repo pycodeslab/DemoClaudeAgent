@@ -88,6 +88,14 @@ Two destinations, and the test is whether the thing *is UI*:
 
 `util/` is for logic several screens share: query matching, formatting, validation, sorting. Keep each function pure and top-level so it is directly unit-testable without a ViewModel, a device, or a Compose rule — that testability is the whole reason the split exists.
 
+The same promotion rule applies to `@Composable`s, and it is the one this repo already trips over:
+`ErrorState` and `EmptyState` name no screen's types, so the moment a second screen needs them they
+move from `<screen>/components/` to `ui/components/` — leave the old copy behind and you get two
+that drift apart. A promoted component must also stop carrying one screen's wording: a default like
+`message: String = "Belum ada post."` becomes `"Belum ada data."`, with each screen passing its own.
+Writing a generic component straight into `ui/components/` is fine; writing a second copy of one is
+not.
+
 Do not pre-create `util/` speculatively. A function earns its place there when a second screen needs it, **or** when it is already fully general — generic, with no screen-specific types, like `filterByQuery` in `references/templates.md`. A helper written against one screen's models stays private to that screen until a second caller appears.
 
 ## Non-negotiables in this repo

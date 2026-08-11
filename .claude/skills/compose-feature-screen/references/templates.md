@@ -179,7 +179,8 @@ fun PostListScreen(
 private fun PostListScreenPreview() {
     DemoTheme {
         PostListScreen(                       // literal state: no ViewModel, no LaunchedEffect
-            uiState = PostListUiState(posts = listOf(Post(1, "Sample title", "body"))),
+            // PostUiModel, never the domain model — that is what `posts` holds.
+            uiState = PostListUiState(posts = listOf(PostUiModel(1, "Sample title", "Ringkasan"))),
             onEvent = {},
         )
     }
