@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import com.sample.demo.core.data.repository.PostRepository
 import com.sample.demo.feature.util.filterByQuery
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -17,14 +18,12 @@ import kotlinx.coroutines.launch
  *
  * No DI framework (see CLAUDE.md) — the dependency is a constructor parameter with a default.
  *
- * [loadPosts] is a seam, not a data layer. `:core:data` does not exist in this repo yet, so
- * nothing is provided: the default loads nothing and the screen renders its empty state. When
- * `PostRepository` lands, change the default to call it and replace the `try/catch` with a
- * `when (result)` over `core.common.Result`. Deliberately *not* a stub repository or fake data
- * source — that would be a data layer in the wrong module.
+ * [repository] is `:core:data`'s public contract, defaulted to its public factory function. The
+ * screen still renders empty, because `PostRepositoryImpl`'s own seam has no `:core:network` API to
+ * call yet — that gap belongs one module down, not here.
  */
 class PostListViewModel(
-    private val loadPosts: suspend () -> List<PostUiModel> = { emptyList() },
+    private val repository: PostRepository = PostRepository(),
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(PostListUiState())
@@ -60,7 +59,7 @@ class PostListViewModel(
             // try/catch only because :core:common has no Result type yet; once it does, errors
             // arrive as values and this becomes a `when` over Result.
             try {
-                loadedPosts = loadPosts()
+                loadedPosts = repository.getPosts().map { it.toUiModel() }
                 _uiState.update { state ->
                     state.copy(
                         isLoading = false,
@@ -81,6 +80,7 @@ class PostListViewModel(
     }
 
     companion object {
+        // The default argument is the real repository, so the app gets it through this initializer.
         val Factory: ViewModelProvider.Factory = viewModelFactory {
             initializer { PostListViewModel() }
         }

@@ -6,12 +6,12 @@ Guidance for Claude Code (claude.ai/code) working in this repository.
 
 Multi-module Android skeleton. The modules, their dependency wiring, and the build setup exist. `:core:common` and `:core:network` are still **empty** — those source sets hold only `.gitkeep`.
 
-Two modules carry one worked example each, both built by the skill named next to them, and both **standing on a seam rather than a faked layer below**:
+Two modules carry one worked example each, built by the skills named next to them, **standing on a seam rather than a faked layer below**:
 
-- `:feature` — the Compose `postlist` screen (`compose-feature-screen` skill). Its ViewModel takes a `suspend () -> List<PostUiModel>` seam defaulting to `{ emptyList() }`, so the screen renders its empty state.
+- `:feature` — the Compose `postlist` screen (`compose-feature-screen` skill). Its ViewModel takes `PostRepository = PostRepository()` and maps `Post → PostUiModel` through an `internal` extension in `PostListUiState.kt` (`wire-feature-to-data` skill). The `try`/`catch` at that call survives only until `:core:common` supplies `Result`.
 - `:core:data` — the `Post` domain model and the `PostRepository` contract (`core-data-repository` skill). `PostRepositoryImpl` takes a `suspend () -> List<Post>` seam defaulting to `{ emptyList() }`, because `:core:network` has no API to call yet. It returns `List<Post>` rather than `Result` until `:core:common` supplies one.
 
-Neither seam is wired to the other yet: `:feature`'s ViewModel still defaults to loading nothing rather than calling `PostRepository()`.
+The two are wired to each other; the only remaining seam is `PostRepositoryImpl.fetchPosts`, waiting on `:core:network`. So the screen still renders its empty state — that is the honest end of a real chain, not a missing connection.
 
 ```
 :app  ──►  :feature  ──►  :core:data  ──►  :core:network  ──►  :core:common
@@ -63,5 +63,5 @@ These held before the implementation was stripped out; new code should follow th
 - **No DI framework.** Default constructor arguments plus an explicit `ViewModelProvider.Factory`. Adding Hilt/Koin replaces those defaults; it does not restructure the modules.
 - **Jetpack Compose (Material 3) for new UI in `:feature`.** Use the `compose-feature-screen` skill — it carries the layering (Route → stateless Screen → components), the AndroidX component API guidelines, and the build wiring. Compose stays inside `:feature`; `:core:*` must never expose a `@Composable` or a `State`. View binding remains enabled so existing XML screens keep working; do not convert them unasked. Window themes still live in `:app` (`Theme.DemoClaudeAgent.Compose`), while the Compose color scheme comes from `DemoTheme` in `:feature`.
 - **One state object per screen**, exposed as a `StateFlow`, collected with `collectAsStateWithLifecycle()` in Compose (or `repeatOnLifecycle(STARTED)` in a View screen). Add a field to it rather than a second stream.
-- **Never fabricate a missing layer.** If `:core:data`/`:core:common` do not yet have what a screen needs, build the screen anyway and leave the dependency as a function-type constructor parameter defaulting to "nothing". No stub repository, fake data source, in-memory `Impl`, or invented domain model — those are a data layer in the wrong module, and they get committed and later have to be unwound.
+- **Never fabricate a missing layer.** If `:core:data`/`:core:common` do not yet have what a screen needs, build the screen anyway and leave the dependency as a function-type constructor parameter defaulting to "nothing". No stub repository, fake data source, in-memory `Impl`, or invented domain model — those are a data layer in the wrong module, and they get committed and later have to be unwound. When the layer below does land, use the `wire-feature-to-data` skill to replace the seam — it owns the domain → UI mapper, the `ViewModelProvider.Factory` check, and the boundary rules that wiring tends to break.
 - **Shared code splits by whether it is UI.** Reusable `@Composable`s go in `feature/ui/components/`; reusable non-UI functions go in `feature/util/`, which stays free of `androidx.compose.*` and `android.*` so it is testable as plain Kotlin. Compose-aware helpers that emit nothing (`Modifier` extensions, `remember…` helpers) belong under `feature/ui/`, not `util/`.

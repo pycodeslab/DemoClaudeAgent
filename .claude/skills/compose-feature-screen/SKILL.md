@@ -41,7 +41,7 @@ feature/src/main/java/com/sample/demo/feature/
 
 **Events** — a `sealed interface <Screen>Event` with one `data class`/`data object` per user intent. The stateless screen receives a single `onEvent: (<Screen>Event) -> Unit`, so adding an interaction never changes a signature.
 
-**ViewModel** — the *only* place with business logic: validation, retry, ordering, mapping domain → UI. Exposes `uiState: StateFlow<…>` and a `companion object` `ViewModelProvider.Factory`. Its dependency arrives as a constructor parameter with a default (no DI framework — see `@CLAUDE.md`). When `:core:data` exists that parameter is the repository and the ViewModel branches on `Result`; when it does not, see "Missing layers" below.
+**ViewModel** — the *only* place with business logic: validation, retry, ordering, mapping domain → UI. Exposes `uiState: StateFlow<…>` and a `companion object` `ViewModelProvider.Factory`. Its dependency arrives as a constructor parameter with a default (no DI framework — see `@CLAUDE.md`). When `:core:data` exists that parameter is the repository — use the `wire-feature-to-data` skill, which owns that join; when it does not, see "Missing layers" below.
 
 **Stateless screen** — `@Composable fun <Screen>Screen(uiState: …, onEvent: (…) -> Unit, modifier: Modifier = Modifier)`. No ViewModel reference, no `remember` of business state. This is what previews and screenshot tests use.
 
@@ -72,6 +72,7 @@ Rules for this case:
 - The default supplies **no data** — `{ emptyList() }`, not sample content. An empty screen is the honest result of having no data layer.
 - Own UI models (`<Screen>UiModel`) in `:feature`. Those are a UI concern, not a fabricated domain — but they carry only what this screen renders.
 - Without `:core:common` there is no `Result`, so failures arrive as thrown exceptions and the ViewModel catches at that single seam. Note in a comment that this reverts to branching on `Result` once `:core:common` exists.
+- When the repository later lands, replacing this seam is the `wire-feature-to-data` skill's job — including the domain → UI mapper. Do not improvise it here.
 - **Say so in your summary.** Report which layers were absent and what was therefore not built. Never let missing layers show up as a silent gap.
 - Do not add dependencies to `:feature`'s `build.gradle.kts` to compensate. Retrofit, Gson and OkHttp are deliberately absent from this module.
 

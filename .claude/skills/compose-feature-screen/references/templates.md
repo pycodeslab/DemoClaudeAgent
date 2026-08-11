@@ -46,17 +46,22 @@ fun DemoTheme(
 ```kotlin
 package com.sample.demo.feature.postlist
 
-import com.sample.demo.core.data.model.Post
-
 data class PostListUiState(
     val isLoading: Boolean = false,
-    val posts: List<Post> = emptyList(),
+    // A UI model owned by this screen — never a `:core:data` domain model, even once one exists.
+    val posts: List<PostUiModel> = emptyList(),
     val query: String = "",
     val errorMessage: String? = null,
 ) {
     // Derived — never a second source of truth, never a second StateFlow.
     val isEmpty: Boolean get() = !isLoading && errorMessage == null && posts.isEmpty()
 }
+
+data class PostUiModel(
+    val id: Long,
+    val title: String,
+    val excerpt: String,
+)
 
 sealed interface PostListEvent {
     data object Refresh : PostListEvent
@@ -125,60 +130,14 @@ of the state machine stays reachable without a data layer existing.
 
 ### 2b. `:core:data` exists — take the repository
 
-```kotlin
-package com.sample.demo.feature.postlist
+**Use the `wire-feature-to-data` skill.** Replacing the seam is not a one-line edit and it is not
+this skill's job: the domain model and the UI model have different shapes, so a mapper has to be
+written, the `Factory` has to be re-checked, and the tests lose the lambda they were driving. That
+skill also carries the case this one gets wrong if you improvise — a repository that exists while
+`:core:common` still has no `Result`, so failures still arrive as thrown exceptions.
 
-import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
-import androidx.lifecycle.viewModelScope
-import com.sample.demo.core.common.Result
-import com.sample.demo.core.data.repository.PostRepository
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.launch
-
-class PostListViewModel(
-    private val repository: PostRepository = PostRepository(),   // default arg: no DI framework
-) : ViewModel() {
-
-    private val _uiState = MutableStateFlow(PostListUiState())
-    val uiState: StateFlow<PostListUiState> = _uiState.asStateFlow()
-
-    init { load() }
-
-    fun onEvent(event: PostListEvent) {
-        when (event) {
-            PostListEvent.Refresh -> load()
-            PostListEvent.ErrorDismissed -> _uiState.update { it.copy(errorMessage = null) }
-            is PostListEvent.QueryChanged -> _uiState.update { it.copy(query = event.query) }
-            is PostListEvent.PostClicked -> { /* navigation intent */ }
-        }
-    }
-
-    private fun load() {
-        _uiState.update { it.copy(isLoading = true, errorMessage = null) }
-        viewModelScope.launch {
-            // Errors cross boundaries as values — branch on Result, do not try/catch.
-            when (val result = repository.getPosts()) {
-                is Result.Success -> _uiState.update {
-                    it.copy(isLoading = false, posts = result.data)
-                }
-                is Result.Error -> _uiState.update {
-                    it.copy(isLoading = false, errorMessage = result.exception.toMessage())
-                }
-            }
-        }
-    }
-
-    companion object {
-        val Factory: ViewModelProvider.Factory = viewModelFactory {
-            initializer { PostListViewModel() }
-        }
-    }
-}
-```
+What does **not** change when the repository arrives: `UiState` keeps holding `PostUiModel`, the
+event interface, the stateless screen, and every component.
 
 Rules: no Android framework types (`Context`, `View`) in the signature; every state change goes
 through `_uiState.update`; suspending work runs in `viewModelScope`; the dispatcher comes from

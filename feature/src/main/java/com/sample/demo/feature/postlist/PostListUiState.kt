@@ -1,5 +1,7 @@
 package com.sample.demo.feature.postlist
 
+import com.sample.demo.core.data.model.Post
+
 /**
  * Everything [PostListScreen] needs to render, in one object.
  *
@@ -21,6 +23,20 @@ data class PostUiModel(
     val title: String,
     val excerpt: String,
 )
+
+/**
+ * The one place [Post]'s shape and this screen's shape are reconciled.
+ *
+ * Lives here rather than in `util/` (it names one screen's UI model) or in `:core:data` (a UI model
+ * there would invert the dependency).
+ */
+internal fun Post.toUiModel(): PostUiModel = PostUiModel(
+    id = id.toLong(),                      // the domain says Int; the list wants a stable Long key
+    title = title,
+    excerpt = body.take(EXCERPT_LENGTH),   // the list shows a preview, not the whole body
+)
+
+private const val EXCERPT_LENGTH = 120
 
 /** Every user intent on this screen. One `onEvent` keeps the screen signature stable. */
 sealed interface PostListEvent {

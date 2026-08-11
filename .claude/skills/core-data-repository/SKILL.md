@@ -62,8 +62,9 @@ Why a data source at all, when the repository could call the `Api` directly: it 
 test fakes (a hand-written `internal` fake, never a mocking library), and it is where a second
 source — cache, local store — would slot in without touching the repository's contract.
 
-**Repository interface** (`repository/`) — the module's *entire* public surface. Its signatures may
-name only `:core:common` types and this module's domain models:
+**Repository interface** (`repository/`) — the module's *entire* public surface, and the only thing
+`:feature` ever names (via `wire-feature-to-data`). Its signatures may name only `:core:common`
+types and this module's domain models:
 
 ```kotlin
 interface PostRepository {
@@ -100,7 +101,9 @@ If one does, the fix is `internal` plus a public factory — never widening `:co
 
 ## Missing layers: build the contract, fabricate nothing
 
-Same rule as `compose-feature-screen`, one layer down. If `:core:network` has no API yet, **do not
+Same rule as `compose-feature-screen`, one layer down — that skill leaves a seam pointing down at
+this module, this one leaves a seam pointing down at `:core:network`, and `wire-feature-to-data`
+closes the one in between once both sides exist. If `:core:network` has no API yet, **do not
 invent one** — no `<X>Dto`, no Retrofit interface, no `NetworkModule`, no hardcoded sample list, no
 in-memory `Impl` pretending to be a cache. And if `:core:common` has no `Result`, **do not define
 `Result`, `NetworkException`, or `DispatcherProvider` here** — that is `:core:common`'s code sitting
