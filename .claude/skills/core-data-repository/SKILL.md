@@ -1,6 +1,7 @@
 ---
 name: core-data-repository
-description: Define a repository plus its data source in the :core:data module — domain model, wire→domain mapper, remote data source over :core:network, and the public repository contract :feature consumes. Use whenever asked to add/modify a repository, data source, domain model, or mapper in this repo (e.g. "buat repository X", "tambah data source", "bikin domain model", "add a repository for feature Y", "wire the data layer"). Encodes the module-boundary rule that :core:data exists to enforce.
+description: Define a repository plus its data source in the :core:data module — domain model, wire→domain mapper, remote data source over :core:network, and the public repository contract :feature consumes. Invoke explicitly with /core-data-repository when adding or modifying a repository, data source, domain model, or mapper in this repo. Encodes the module-boundary rule that :core:data exists to enforce.
+disable-model-invocation: true
 ---
 
 # Repository + data source in `:core:data`

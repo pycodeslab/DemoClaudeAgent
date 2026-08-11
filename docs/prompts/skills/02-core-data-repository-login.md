@@ -4,7 +4,8 @@ Sesi **kedua** dari tiga. Membangun kontrak data untuk login di `:core:data`, be
 seam ke `:core:network`. Jalankan `/clear` sebelum memakai prompt ini — sesi ini tidak perlu
 tahu apa-apa soal Compose.
 
-Skill terpicu sendiri oleh kalimat pembuka; kalau tidak, sebut: `pakai skill core-data-repository`.
+Skill ini **tidak terpicu otomatis** — ketik `/core-data-repository` lebih dulu, baru tempel
+prompt di bawah.
 
 ---
 

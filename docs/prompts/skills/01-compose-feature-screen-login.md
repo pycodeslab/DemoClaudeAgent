@@ -3,8 +3,9 @@
 Sesi **pertama** dari tiga. Membangun layar Login lengkap di `:feature` sampai berhenti di
 seam, tanpa menyentuh `:core:data`. Jalankan `/clear` sebelum memakai prompt ini.
 
-Skill terpicu sendiri oleh kalimat pembuka di bawah; kalau tidak, sebut namanya:
-`pakai skill compose-feature-screen`.
+Skill ini **tidak terpicu otomatis** (`disable-model-invocation: true`) — Anda yang harus
+memanggilnya. Ketik `/compose-feature-screen` lebih dulu, baru tempel prompt di bawah;
+atau langsung `/compose-feature-screen` diikuti isi prompt sebagai argumen.
 
 ---
 

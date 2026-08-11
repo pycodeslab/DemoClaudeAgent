@@ -1,6 +1,7 @@
 ---
 name: compose-feature-screen
-description: Build a screen in the :feature module with Jetpack Compose — UI state, UI logic, reusable UI components, and business logic in a ViewModel. Use whenever asked to add/modify a screen, Composable component, UiState, UI event, or feature ViewModel in this repo (e.g. "buat screen X", "add a Compose screen", "tambah komponen UI", "bikin ViewModel untuk layar Y"). Encodes the AndroidX Compose component API guidelines plus this repo's AGP 9 / no-KGP toolchain rules.
+description: Build a screen in the :feature module with Jetpack Compose — UI state, UI logic, reusable UI components, and business logic in a ViewModel. Invoke explicitly with /compose-feature-screen when adding or modifying a screen, Composable component, UiState, UI event, or feature ViewModel in this repo. Encodes the AndroidX Compose component API guidelines plus this repo's AGP 9 / no-KGP toolchain rules.
+disable-model-invocation: true
 ---
 
 # Compose screen in `:feature`

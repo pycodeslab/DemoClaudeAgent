@@ -78,8 +78,11 @@ di `:feature`, pakai skill `compose-feature-screen`
 ([`.claude/skills/compose-feature-screen/`](../../.claude/skills/compose-feature-screen/)):
 
 ```
-buatkan screen <X> dengan Compose di :feature
+/compose-feature-screen buatkan screen <X> dengan Compose di :feature
 ```
+
+Skill itu (dan dua saudaranya) sengaja **tidak terpicu otomatis** — harus dipanggil
+dengan `/`.
 
 Skill itu memuat layering Route → Screen (stateless) → component, panduan
 [Compose component API guidelines](https://android.googlesource.com/platform/frameworks/support/+/androidx-main/compose/docs/compose-component-api-guidelines.md),

@@ -7,16 +7,32 @@ Bedanya dengan [`../modules/`](../modules/): folder itu menghasilkan layar XML +
 lewat prompt biasa. Folder ini memakai skill, yang sudah memuat layering Compose, aturan batas
 module, dan pola test-nya — jadi prompt-nya bisa lebih pendek dan lebih sulit disalahartikan.
 
+## Cara memanggil
+
+Ketiga skill dikonfigurasi `disable-model-invocation: true`, jadi **hanya Anda yang bisa
+memanggilnya, lewat `/`**:
+
+```
+/compose-feature-screen
+/core-data-repository
+/wire-feature-to-data
+```
+
+Claude tidak akan memuatnya sendiri hanya karena Anda menulis "buatkan screen X" — itu
+disengaja: skill ini mengubah banyak file, jadi keputusan memakainya ada di tangan Anda.
+Konsekuensinya, kalau Anda lupa mengetik `/`, Claude akan mengerjakannya tanpa aturan
+layering di skill tersebut. Ketik `/` di prompt untuk melihat daftarnya.
+
 ## Urutan eksekusi
 
 **Satu skill = satu sesi.** Jalankan `/clear` di antaranya: setiap skill memuat referensinya
 sendiri, dan sesi `:core:data` tidak perlu terbebani detail Compose.
 
-| # | Sesi | Prompt | Skill | Berhenti di |
+| # | Sesi | Prompt | Panggil dengan | Berhenti di |
 | --- | --- | --- | --- | --- |
-| 1 | Layar | [`01-compose-feature-screen-login.md`](01-compose-feature-screen-login.md) | `compose-feature-screen` | seam `submitLogin` di ViewModel |
-| 2 | Data | [`02-core-data-repository-login.md`](02-core-data-repository-login.md) | `core-data-repository` | seam `submitLogin` di `AuthRepositoryImpl` |
-| 3 | Sambung | [`03-wire-feature-to-data-login.md`](03-wire-feature-to-data-login.md) | `wire-feature-to-data` | rantai tersambung; sisa seam menunggu `:core:network` |
+| 1 | Layar | [`01-compose-feature-screen-login.md`](01-compose-feature-screen-login.md) | `/compose-feature-screen` | seam `submitLogin` di ViewModel |
+| 2 | Data | [`02-core-data-repository-login.md`](02-core-data-repository-login.md) | `/core-data-repository` | seam `submitLogin` di `AuthRepositoryImpl` |
+| 3 | Sambung | [`03-wire-feature-to-data-login.md`](03-wire-feature-to-data-login.md) | `/wire-feature-to-data` | rantai tersambung; sisa seam menunggu `:core:network` |
 
 ```
 1. compose-feature-screen ──► LoginScreen + LoginViewModel(seam)

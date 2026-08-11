@@ -3,7 +3,8 @@
 Sesi **ketiga** dari tiga. Menutup celah yang sengaja ditinggalkan dua skill sebelumnya.
 Jalankan `/clear` sebelum memakai prompt ini.
 
-Skill terpicu sendiri oleh kalimat pembuka; kalau tidak, sebut: `pakai skill wire-feature-to-data`.
+Skill ini **tidak terpicu otomatis** — ketik `/wire-feature-to-data` lebih dulu, baru tempel
+prompt di bawah.
 
 ---
 

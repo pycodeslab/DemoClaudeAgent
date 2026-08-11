@@ -1,6 +1,7 @@
 ---
 name: wire-feature-to-data
-description: Connect a :feature screen to a :core:data repository — replace the ViewModel's function-type seam with the real repository, map the domain model to the screen's UI model, and update the Factory and tests. Use whenever asked to join the two layers in this repo (e.g. "sambungkan ViewModel ke repository", "hubungkan screen ke :core:data", "ganti seam dengan repository", "bikin mapper domain ke UI model", "wire the screen to the data layer", "connect PostListViewModel to PostRepository"). Owns the step that compose-feature-screen and core-data-repository each deliberately stop short of.
+description: Connect a :feature screen to a :core:data repository — replace the ViewModel's function-type seam with the real repository, map the domain model to the screen's UI model, and update the Factory and tests. Invoke explicitly with /wire-feature-to-data when joining the two layers in this repo. Owns the step that compose-feature-screen and core-data-repository each deliberately stop short of.
+disable-model-invocation: true
 ---
 
 # Wiring `:feature` → `:core:data`
