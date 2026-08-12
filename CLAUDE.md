@@ -4,24 +4,25 @@ Guidance for Claude Code (claude.ai/code) working in this repository.
 
 ## Project
 
-Multi-module Android skeleton. The modules, their dependency wiring, and the build setup exist. `:core:common` and `:core:network` are still **empty** — those source sets hold only `.gitkeep`.
+Multi-module Android skeleton. The modules, their dependency wiring, and the build setup exist. `:core:common` is still **empty** — its source sets hold only `.gitkeep`. There is no networking module: `:core:network` was removed, so nothing in this repo reaches the network yet.
 
 Two modules carry one worked example each, built by the skills named next to them, **standing on a seam rather than a faked layer below**:
 
 - `:feature` — the Compose `postlist` screen (`compose-feature-screen` skill). Its ViewModel takes `PostRepository = PostRepository()` and maps `Post → PostUiModel` through an `internal` extension in `PostListUiState.kt` (`wire-feature-to-data` skill). The `try`/`catch` at that call survives only until `:core:common` supplies `Result`.
-- `:core:data` — the `Post` domain model and the `PostRepository` contract (`core-data-repository` skill). `PostRepositoryImpl` takes a `suspend () -> List<Post>` seam defaulting to `{ emptyList() }`, because `:core:network` has no API to call yet. It returns `List<Post>` rather than `Result` until `:core:common` supplies one.
+- `:core:data` — the `Post` domain model and the `PostRepository` contract (`core-data-repository` skill). `PostRepositoryImpl` takes a `suspend () -> List<Post>` seam defaulting to `{ emptyList() }`, because there is no networking layer to call. It returns `List<Post>` rather than `Result` until `:core:common` supplies one.
 
-The two are wired to each other; the only remaining seam is `PostRepositoryImpl.fetchPosts`, waiting on `:core:network`. So the screen still renders its empty state — that is the honest end of a real chain, not a missing connection.
+The two are wired to each other; the only remaining seam is `PostRepositoryImpl.fetchPosts`, which stays open until a networking layer exists. So the screen still renders its empty state — that is the honest end of a real chain, not a missing connection.
 
 ```
-:app  ──►  :feature  ──►  :core:data  ──►  :core:network  ──►  :core:common
+:app  ──►  :feature  ──►  :core:data  ──►  :core:common
 ```
 
 - `:app` — manifest, theme, icons. No code of its own; it contributes the `MAIN`/`LAUNCHER` intent-filter once a feature declares an activity.
 - `:feature` — Activities, ViewModels, UI state, Compose screens and components.
 - `:core:data` — repositories, domain models, mappers, data sources.
-- `:core:network` — Retrofit/OkHttp setup, API interfaces, wire models, error mapping.
 - `:core:common` — shared result type, dispatcher provider, extensions.
+
+There is no networking module. Retrofit/OkHttp/Gson aliases remain in `gradle/libs.versions.toml` but nothing declares them; the `INTERNET` and `ACCESS_NETWORK_STATE` permissions left with `:core:network` and are no longer merged into the APK. Adding networking back means a new module plus those permissions in its manifest — not Retrofit dropped into `:core:data`.
 
 Namespaces mirror the path (`:core:data` → `com.sample.demo.core.data`). Dependencies point downward only. Each module's `build.gradle.kts` already declares the libraries its layer is meant to use, so new code should not need new coordinates.
 
@@ -58,9 +59,9 @@ New module: create the directory, add `include(":path")` to `settings.gradle.kts
 These held before the implementation was stripped out; new code should follow them.
 
 - **The three skills are user-invoked only.** `/compose-feature-screen`, `/core-data-repository` and `/wire-feature-to-data` carry the full version of the rules below. All three are configured `disable-model-invocation: true`, so Claude cannot load them on its own: when a request falls in one's scope, name the skill and let the user run it, then follow it. Working without it is allowed but means holding the rules below by hand.
-- **`:core:data` hides `:core:network`** (`implementation`, not `api`). Retrofit types and wire models must not surface in its public API — keep API-facing constructors `internal`. Wire → domain mapping lives in `core/data/mapper/`. Use `/core-data-repository` for repositories, data sources, domain models and mappers — it carries that boundary rule, the layering (domain model → mapper → internal data source → public repository), and the fake-based test patterns.
-- **Errors cross boundaries as values.** A `safeApiCall` helper folds every outcome into `Result`, classifying failures as `NetworkException`; repositories and ViewModels branch on `Result` instead of catching. Endpoints are `suspend` functions returning `Response<T>` in `core/network/api/`.
-- **Each module declares its own manifest components.** A feature declares its activity without `android:exported`; `:app` merges in the `MAIN`/`LAUNCHER` filter. `INTERNET` comes from `:core:network`.
+- **`:core:data` hides whatever it fetches from.** Transport types and wire models must not surface in its public API — keep API-facing constructors `internal`, and depend on any future networking module with `implementation`, not `api`. Wire → domain mapping lives in `core/data/mapper/`. Use `/core-data-repository` for repositories, data sources, domain models and mappers — it carries that boundary rule, the layering (domain model → mapper → internal data source → public repository), and the fake-based test patterns. **The three skills still describe a `:core:network` module that no longer exists** — read their remote-data-source sections as the shape to follow *if* networking is added back, not as the current repo.
+- **Errors cross boundaries as values.** A `safeApiCall`-style helper folds every outcome into `Result`, classifying failures as `NetworkException`; repositories and ViewModels branch on `Result` instead of catching. Nothing implements this yet — it waits on `:core:common` and a networking layer.
+- **Each module declares its own manifest components.** A feature declares its activity without `android:exported`; `:app` merges in the `MAIN`/`LAUNCHER` filter. No module contributes `INTERNET` any more.
 - **No DI framework.** Default constructor arguments plus an explicit `ViewModelProvider.Factory`. Adding Hilt/Koin replaces those defaults; it does not restructure the modules.
 - **Jetpack Compose (Material 3) for new UI in `:feature`.** Use `/compose-feature-screen` — it carries the layering (Route → stateless Screen → components), the AndroidX component API guidelines, and the build wiring. Compose stays inside `:feature`; `:core:*` must never expose a `@Composable` or a `State`. View binding remains enabled so existing XML screens keep working; do not convert them unasked. Window themes still live in `:app` (`Theme.DemoClaudeAgent.Compose`), while the Compose color scheme comes from `DemoTheme` in `:feature`.
 - **One state object per screen**, exposed as a `StateFlow`, collected with `collectAsStateWithLifecycle()` in Compose (or `repeatOnLifecycle(STARTED)` in a View screen). Add a field to it rather than a second stream.
