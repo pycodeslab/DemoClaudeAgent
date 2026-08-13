@@ -1,69 +1,170 @@
-# CLAUDE.md
+# DemoClaudeAgent
 
-Guidance for Claude Code (claude.ai/code) working in this repository.
+## Module structure & dependency rules
 
-## Project
+- `:app` — entry point only: manifest, resources, theme. No business logic
+- `:feature` — UI (Compose + XML/ViewBinding) + ViewModel
+- `:core:data` — repository, data sources, mappers. Owns the public contract `:feature` consumes
+- `:core:common` — pure Kotlin utilities, **zero `android.*` imports**
 
-Multi-module Android skeleton. The modules, their dependency wiring, and the build setup exist. `:core:common` is still **empty** — its source sets hold only `.gitkeep`. There is no networking module: `:core:network` was removed, so nothing in this repo reaches the network yet.
+Dependency direction: `:app` → `:feature` → `:core:data` → `:core:common`.
+`:app` also declares direct dependencies on all three (see `app/build.gradle.kts`), but only for
+DI wiring — never call a repository from `:app`.
 
-Two modules carry one worked example each, built by the skills named next to them, **standing on a seam rather than a faked layer below**:
+- `:feature` must NOT contain Repository or DataSource implementations — ViewModel + UI only
+- `:feature` reaches the data layer only through interfaces exposed by `:core:data`
+- `:core:data` never depends on `:feature`; `:core:common` depends on nothing internal
+- Logic shared between *screens* goes into `feature/util/` (pure Kotlin, no Compose, no `android.*`) —
+  see `QueryFilterTest`. Promote it to `:core:common` once a second *module* needs it. Either way,
+  never a second feature module
 
-- `:feature` — the Compose `postlist` screen (`compose-feature-screen` skill). Its ViewModel takes `PostRepository = PostRepository()` and maps `Post → PostUiModel` through an `internal` extension in `PostListUiState.kt` (`wire-feature-to-data` skill). The `try`/`catch` at that call survives only until `:core:common` supplies `Result`.
-- `:core:data` — the `Post` domain model and the `PostRepository` contract (`core-data-repository` skill). `PostRepositoryImpl` takes a `suspend () -> List<Post>` seam defaulting to `{ emptyList() }`, because there is no networking layer to call. It returns `List<Post>` rather than `Result` until `:core:common` supplies one.
+### Current state of the repo
 
-The two are wired to each other; the only remaining seam is `PostRepositoryImpl.fetchPosts`, which stays open until a networking layer exists. So the screen still renders its empty state — that is the honest end of a real chain, not a missing connection.
+`core/data` and `core/common` hold only `.gitkeep` — no source yet. `feature/src/main` is likewise
+empty, but `feature/src/test/` already contains tests for code that does not exist
+(`PostListViewModelTest`, `QueryFilterTest`, `PostListScreenTest`). **Those tests are the spec** —
+class names, function signatures, and expected behaviour come from them. Read them before writing
+the implementation, and do not edit a test to make it match new code.
+
+`app/src/main/AndroidManifest.xml` already registers `com.sample.demo.feature.postlist.PostListActivity`
+as the launcher activity, so that class is expected to exist in `:feature`.
+
+## Toolchain
+
+- Java 11 (`JavaVersion.VERSION_11` in every module) — not 17
+- compileSdk 37, targetSdk 37, minSdk 24, AGP 9.3.1
+- Gradle wrapper only (`./gradlew`), never a globally installed Gradle
+- All dependencies come from the version catalog `gradle/libs.versions.toml` — no hardcoded
+  coordinates in a module's `build.gradle.kts`
+- Configuration cache is on (`org.gradle.configuration-cache=true`); a build script that reads
+  mutable state at execution time will fail
+- No lint/format plugin is configured (no ktlint, no detekt) — style below is enforced by review
+
+## Build & test commands
 
 ```
-:app  ──►  :feature  ──►  :core:data  ──►  :core:common
+./gradlew projects                       # list modules
+./gradlew build                          # build everything
+./gradlew :feature:assembleDebug         # build one module
+./gradlew :feature:dependencies          # dependency graph for one module
+
+./gradlew testDebugUnitTest              # all unit tests (fast, no device)
+./gradlew :feature:testDebugUnitTest     # unit tests for one module
+./gradlew :feature:testDebugUnitTest --tests "com.sample.demo.feature.postlist.PostListViewModelTest"
+./gradlew connectedDebugAndroidTest      # instrumentation tests (needs emulator/device)
 ```
 
-- `:app` — manifest, theme, icons. No code of its own; it contributes the `MAIN`/`LAUNCHER` intent-filter once a feature declares an activity.
-- `:feature` — Activities, ViewModels, UI state, Compose screens and components.
-- `:core:data` — repositories, domain models, mappers, data sources.
-- `:core:common` — shared result type, dispatcher provider, extensions.
+On Windows the wrapper is `.\gradlew.bat` — the skills use that form. Same tasks either way.
 
-There is no networking module. Retrofit/OkHttp/Gson aliases remain in `gradle/libs.versions.toml` but nothing declares them; the `INTERNET` and `ACCESS_NETWORK_STATE` permissions left with `:core:network` and are no longer merged into the APK. Adding networking back means a new module plus those permissions in its manifest — not Retrofit dropped into `:core:data`.
+Run unit tests before instrumentation tests — they're faster and catch most issues.
+`./gradlew testDebugUnitTest` must be green before requesting review.
 
-Namespaces mirror the path (`:core:data` → `com.sample.demo.core.data`). Dependencies point downward only. Each module's `build.gradle.kts` already declares the libraries its layer is meant to use, so new code should not need new coordinates.
+## Architecture
 
-## Commands
+MVVM, unidirectional data flow: UI observes `StateFlow` from the ViewModel, the ViewModel calls the
+repository, the repository is the single source of truth.
 
-`gradlew.bat` (PowerShell) or `./gradlew` (Bash tool). Drop the module prefix to run a task in every module.
+### No `:domain` module
 
-```powershell
-.\gradlew.bat :app:assembleDebug     # build debug APK (all modules)
-.\gradlew.bat testDebugUnitTest      # unit tests, all modules
-.\gradlew.bat lintDebug              # lint, all modules
-.\gradlew.bat :app:installDebug      # install to connected device
-.\gradlew.bat :core:data:testDebugUnitTest --tests "*PostRepositoryImplTest"
-.\gradlew.bat :app:connectedDebugAndroidTest   # instrumented, needs a device
-```
+Deliberate, not an oversight. Logic that would be a UseCase lives in the ViewModel, or in the
+repository when it's a data transformation. Revisit only if one use case is needed by 3+ ViewModels
+— and then extract a class inside `:feature`, not a new module.
 
-## Toolchain — do not "modernize" these
+### State
 
-AGP 9.3.0, Gradle 9.5, `compileSdk`/`targetSdk` 37, `minSdk` 24. The DSL differs from most Android documentation:
+- One `StateFlow<UiState>` per screen. Never several competing flows on one ViewModel
+- One-time events (navigation, toast, snackbar) go through a separate `Channel`/`SharedFlow`,
+  never inside `UiState`
+- Expose state the ViewModel owns as `MutableStateFlow(...).asStateFlow()` — that is the pattern the
+  existing tests read (`viewModel.uiState.value`, no collector attached). Reserve
+  `stateIn(..., SharingStarted.WhileSubscribed(5_000), ...)` for state *derived* from an upstream
+  flow, where there is something to stop collecting
 
-- `compileSdk { version = release(37) }`, not `compileSdk = 37`.
-- Minification is `buildTypes.release { optimization { enable = false } }` — there is no `isMinifyEnabled`/`proguardFiles` to edit.
-- R8 keep rules go in `app/src/main/keepRules/` (AGP merges the whole directory), not `proguard-rules.pro`.
-- No Kotlin Gradle plugin, despite `.kt` sources — AGP 9 has built-in Kotlin support. Adding `org.jetbrains.kotlin.android` is never the fix for a Kotlin compile error here. It is also why Gson is the JSON converter rather than kotlinx.serialization.
-- **One exception:** `org.jetbrains.kotlin.plugin.compose` (the Compose compiler plugin) is applied to `:feature`. `buildFeatures { compose = true }` alone fails at configuration time without it. Its version must track the Kotlin version AGP bundles — verified pair: AGP 9.3.1 + compiler plugin 2.4.10 + `compose-bom` 2026.06.01. This is not a licence to add other compiler plugins.
-- Configuration cache is on; the daemon is pinned to JVM 25 (foojay-provisioned) while Java source/target is 11; `FAIL_ON_PROJECT_REPOS` means repositories are added in `settings.gradle.kts` only.
+### Data layer
 
-Dependencies live only in `gradle/libs.versions.toml` — never hardcode a coordinate. Aliases use dots in Kotlin (`libs.androidx.core.ktx`) where the TOML key uses dashes.
+- The repository is the only layer allowed to choose remote vs local (cache-first, network-first…).
+  ViewModels never talk to a DataSource
+- Repository functions return `Result<T>` — never throw across the repository boundary. When
+  `:core:common` lands it, the variants are `Result.Success(data)` and `Result.Failure(exception)`
+  (not `Result.Error`) — this file is the arbiter, so the skills stay consistent with each other
+- ViewModels never expose a raw exception to the UI. Today they map it to an `errorMessage: String?`
+  field on `UiState` — that is what the existing tests assert. Introduce a sealed `UiError` only when
+  the UI has to branch on the *kind* of failure, not just render it
+- No offline sync engine, no conflict resolution — out of scope
 
-New module: create the directory, add `include(":path")` to `settings.gradle.kts`, copy an existing library `build.gradle.kts`, set a unique namespace. There is no convention plugin or `buildSrc`, so the sdk/`compileOptions` blocks are repeated per module.
+### DI and navigation
 
-## Conventions
+- No DI framework in this project. Wire dependencies with constructor injection, assembled in
+  `:app`. Don't introduce Hilt/Koin without asking
+- Navigation is activity-per-feature: `:feature` declares its own activities, `:app` picks the
+  launcher one in its manifest. There is no shared NavHost
 
-These held before the implementation was stripped out; new code should follow them.
+## Code style
 
-- **The three skills are user-invoked only.** `/compose-feature-screen`, `/core-data-repository` and `/wire-feature-to-data` carry the full version of the rules below. All three are configured `disable-model-invocation: true`, so Claude cannot load them on its own: when a request falls in one's scope, name the skill and let the user run it, then follow it. Working without it is allowed but means holding the rules below by hand.
-- **`:core:data` hides whatever it fetches from.** Transport types and wire models must not surface in its public API — keep API-facing constructors `internal`, and depend on any future networking module with `implementation`, not `api`. Wire → domain mapping lives in `core/data/mapper/`. Use `/core-data-repository` for repositories, data sources, domain models and mappers — it carries that boundary rule, the layering (domain model → mapper → internal data source → public repository), and the fake-based test patterns. **The three skills still describe a `:core:network` module that no longer exists** — read their remote-data-source sections as the shape to follow *if* networking is added back, not as the current repo.
-- **Errors cross boundaries as values.** A `safeApiCall`-style helper folds every outcome into `Result`, classifying failures as `NetworkException`; repositories and ViewModels branch on `Result` instead of catching. Nothing implements this yet — it waits on `:core:common` and a networking layer.
-- **Each module declares its own manifest components.** A feature declares its activity without `android:exported`; `:app` merges in the `MAIN`/`LAUNCHER` filter. No module contributes `INTERNET` any more.
-- **No DI framework.** Default constructor arguments plus an explicit `ViewModelProvider.Factory`. Adding Hilt/Koin replaces those defaults; it does not restructure the modules.
-- **Jetpack Compose (Material 3) for new UI in `:feature`.** Use `/compose-feature-screen` — it carries the layering (Route → stateless Screen → components), the AndroidX component API guidelines, and the build wiring. Compose stays inside `:feature`; `:core:*` must never expose a `@Composable` or a `State`. View binding remains enabled so existing XML screens keep working; do not convert them unasked. Window themes still live in `:app` (`Theme.DemoClaudeAgent.Compose`), while the Compose color scheme comes from `DemoTheme` in `:feature`.
-- **One state object per screen**, exposed as a `StateFlow`, collected with `collectAsStateWithLifecycle()` in Compose (or `repeatOnLifecycle(STARTED)` in a View screen). Add a field to it rather than a second stream.
-- **Never fabricate a missing layer.** If `:core:data`/`:core:common` do not yet have what a screen needs, build the screen anyway and leave the dependency as a function-type constructor parameter defaulting to "nothing". No stub repository, fake data source, in-memory `Impl`, or invented domain model — those are a data layer in the wrong module, and they get committed and later have to be unwound. When the layer below does land, use `/wire-feature-to-data` to replace the seam — it owns the domain → UI mapper, the `ViewModelProvider.Factory` check, and the boundary rules that wiring tends to break.
-- **Shared code splits by whether it is UI.** Reusable `@Composable`s go in `feature/ui/components/`; reusable non-UI functions go in `feature/util/`, which stays free of `androidx.compose.*` and `android.*` so it is testable as plain Kotlin. Compose-aware helpers that emit nothing (`Modifier` extensions, `remember…` helpers) belong under `feature/ui/`, not `util/`.
+### Naming
+
+- ViewModel functions triggering a side effect are prefixed `on`: `onSaveClicked()`, not
+  `handleSaveClick()`
+- Repository interfaces live in `:core:data` and take no `I` prefix (`PostRepository`, not
+  `IPostRepository`); implementations are suffixed `Impl`
+- Data source classes are suffixed `DataSource` (`PostRemoteDataSource`, `PostLocalDataSource`)
+
+### Formatting
+
+- Max line length 120
+- Trailing commas required in multi-line calls and parameter lists
+- No wildcard imports, including `androidx.compose.*`
+
+### Compose
+
+- One composable per file, file named after it — `PostListScreen.kt` holds `PostListScreen` plus its
+  private helpers
+- Previews are suffixed `Preview`, annotated `@Preview`, and kept in the same file (no `*Previews.kt`)
+
+## Testing
+
+### What's available
+
+- JUnit4 — `org.junit.Test`, never `org.junit.jupiter`
+- `kotlinx-coroutines-test` (`runTest`, `UnconfinedTestDispatcher`)
+- Assertions from `org.junit.Assert` (`assertEquals`, `assertTrue`, …)
+- **No mocking library, and none may be added.** Write fakes by hand — see the existing
+  `FakePostRepository` in `feature/src/test/java/com/sample/demo/feature/postlist/PostListViewModelTest.kt`
+- `MainDispatcherRule` lives in `feature/src/test/java/com/sample/demo/feature/MainDispatcherRule.kt`
+  and swaps `Dispatchers.Main` so `viewModelScope` runs inside `runTest`
+
+### Conventions
+
+- Naming: `PostListViewModel.kt` → `PostListViewModelTest.kt`
+- Unit tests go in `src/test/`; Compose/UI tests in `src/androidTest/` using `createComposeRule()`
+- Repository tests use in-memory fake data sources — never real network or database
+- Extension functions in `:core:common` get a dedicated test file (`StringExt.kt` → `StringExtTest.kt`)
+- Cover the branches that matter (success / error / loading), not just the happy path.
+  `:core:common` utilities are small and pure — aim for full coverage. No coverage expectation on
+  Compose UI itself
+
+## Git etiquette
+
+- Branch: `<type>/<ticket-id>-<short-description>` with type in `feature|fix|refactor|chore`,
+  e.g. `feature/PROJ-123-post-list-screen`. Branch off `develop`
+- Commits: Conventional Commits with the module as scope —
+  `feat(feature): add post list screen`, `fix(core-data): handle empty response`
+- Keep a commit scoped to one module unless the change is cohesive end-to-end. History is preserved
+  as-is on merge, so each commit should already be meaningful
+- PR title `[PROJ-123] Short description`; body states what changed and why, modules affected,
+  testing done, plus a screenshot for UI changes. Link the ticket
+- Don't bundle unrelated module changes in one PR — split them
+- Rebase on `develop`, don't merge it into your branch. Merge commit, not squash
+- Never force-push `develop` or `main`
+
+## Gotchas
+
+- `WhileSubscribed(5_000)` means collection stops 5s after the UI stops observing. A network call
+  re-firing after rotation is expected, not a bug — but this only applies where `stateIn` is
+  actually used (see State above); a plain `asStateFlow()` never stops
+- `LaunchedEffect(Unit)` for one-time init: adding a key makes it re-run on recomposition and
+  duplicates the call
+- `:feature` has both `viewBinding` and `compose` enabled — check which one a screen uses before
+  assuming
+- Because `:core:data` and `:core:common` are still empty, a new feature usually means writing the
+  layer below it first. Write it in the module it belongs to, never as a shortcut inside `:feature`
