@@ -1,47 +1,23 @@
 # Templates
 
-Skeletons for the five pieces. Replace `Post`/`post` with the screen name. These are shapes to
-follow, not code to paste unchanged — delete what a given screen does not need.
+Skeletons for the five pieces. `PostList`/`postlist` is a placeholder — replace it with the two
+normalised forms of the screen name (`SKILL.md` §"Argument"): `PostList` → `<Screen>` for classes
+and files, `postlist` → `<screen>` for the package segment. Invoked as
+`/compose-feature-screen Login`, every `PostList` below becomes `Login` and every `postlist`
+becomes `login`.
 
-## 0. Theme — create once, shared by every screen
+These are shapes to follow, not code to paste unchanged — delete what a given screen does not need.
 
-`feature/src/main/java/com/sample/demo/feature/ui/theme/Theme.kt`
+## On the theme
 
-```kotlin
-package com.sample.demo.feature.ui.theme
+There is no theme template here, deliberately. This skill does not create one: use the theme
+wrapper the module already owns if it has one, and otherwise wrap in `MaterialTheme` directly, as
+every example below does. Writing a `Theme.kt`, a color palette or a typography set is a separate
+task that has to be asked for on its own.
 
-import android.os.Build
-import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.dynamicDarkColorScheme
-import androidx.compose.material3.dynamicLightColorScheme
-import androidx.compose.material3.lightColorScheme
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.platform.LocalContext
+## 1. UiState — `PostListUiState.kt`
 
-@Composable
-fun DemoTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
-    dynamicColor: Boolean = true,
-    content: @Composable () -> Unit,
-) {
-    val colorScheme = when {
-        // dynamicColor is API 31+; minSdk here is 24.
-        dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
-            val context = LocalContext.current
-            if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
-        }
-        darkTheme -> darkColorScheme()
-        else -> lightColorScheme()
-    }
-    MaterialTheme(colorScheme = colorScheme, content = content)
-}
-```
-
-## 1. UiState + events
-
-`PostListUiState.kt` — one state object, one sealed event hierarchy.
+The state object alone. Events, effects and UI models each get their own file.
 
 ```kotlin
 package com.sample.demo.feature.postlist
@@ -56,12 +32,18 @@ data class PostListUiState(
     // Derived — never a second source of truth, never a second StateFlow.
     val isEmpty: Boolean get() = !isLoading && errorMessage == null && posts.isEmpty()
 }
+```
 
-data class PostUiModel(
-    val id: Long,
-    val title: String,
-    val excerpt: String,
-)
+Rules: immutable `data class`; add a field rather than a second stream; derived values are
+`val ... get()`, not stored copies.
+
+## 2. Events — `PostListEvent.kt`
+
+UI → ViewModel. One file, one sealed hierarchy, nothing else in it: this is the screen's entire
+interaction surface, and it is read on its own far more often than the state is.
+
+```kotlin
+package com.sample.demo.feature.postlist
 
 sealed interface PostListEvent {
     data object Refresh : PostListEvent
@@ -71,14 +53,51 @@ sealed interface PostListEvent {
 }
 ```
 
-Rules: immutable `data class`; add a field rather than a second stream; derived values are
-`val ... get()`, not stored copies.
+## 3. One-time effects — `PostListEffect.kt`
 
-## 2. ViewModel — the only place with business logic
+ViewModel → UI, fired once. Write this file **only when the screen has such an effect** — a
+navigation, a toast, a snackbar. Do not create an empty one.
 
-Pick the variant that matches what actually exists. **2a is the current state of this repo.**
+```kotlin
+package com.sample.demo.feature.postlist
 
-### 2a. `:core:data` does not exist yet — provide nothing
+sealed interface PostListEffect {
+    data class NavigateToDetail(val postId: Long) : PostListEffect
+}
+```
+
+It never belongs in `PostListUiState`: state replays on every recomposition, so a navigation held
+there would fire twice. The ViewModel exposes it as a channel, and only the Route collects it:
+
+```kotlin
+private val _effects = Channel<PostListEffect>(Channel.BUFFERED)
+val effects: Flow<PostListEffect> = _effects.receiveAsFlow()
+```
+
+## 4. UI model — `PostListUiModel.kt`
+
+What this screen renders, carrying only the fields it renders. Own it in `:feature`; it is a UI
+concern, not a domain model, and it does not change shape when `:core:data` later lands. Write this
+file only when the screen actually renders a model of its own.
+
+```kotlin
+package com.sample.demo.feature.postlist
+
+data class PostUiModel(
+    val id: Long,
+    val title: String,
+    val excerpt: String,
+)
+```
+
+This type is what the `wire-feature-to-data` mapper targets — which is the reason it gets a file
+of its own rather than being buried at the bottom of the state file.
+
+## 5. ViewModel — the only place with business logic
+
+Pick the variant that matches what actually exists. **5a is the current state of this repo.**
+
+### 5a. `:core:data` does not exist yet — provide nothing
 
 The dependency is a function type defaulting to "nothing to load". No stub repository, no fake
 source, no sample content. See "Missing layers" in `SKILL.md` for why.
@@ -121,14 +140,14 @@ class PostListViewModel(
             }
         }
     }
-    // onEvent + Factory as in 2b
+    // onEvent + Factory as in 5b
 }
 ```
 
 Tests pass a real lambda (`loadPosts = { posts }` or `{ throw IOException() }`), so every branch
 of the state machine stays reachable without a data layer existing.
 
-### 2b. `:core:data` exists — take the repository
+### 5b. `:core:data` exists — take the repository
 
 **Use the `wire-feature-to-data` skill.** Replacing the seam is not a one-line edit and it is not
 this skill's job: the domain model and the UI model have different shapes, so a mapper has to be
@@ -136,14 +155,14 @@ written, the `Factory` has to be re-checked, and the tests lose the lambda they 
 skill also carries the case this one gets wrong if you improvise — a repository that exists while
 `:core:common` still has no `Result`, so failures still arrive as thrown exceptions.
 
-What does **not** change when the repository arrives: `UiState` keeps holding `PostUiModel`, the
-event interface, the stateless screen, and every component.
+What does **not** change when the repository arrives: `PostListUiState` keeps holding
+`PostUiModel`, the event file, the stateless screen, and every component.
 
 Rules: no Android framework types (`Context`, `View`) in the signature; every state change goes
 through `_uiState.update`; suspending work runs in `viewModelScope`; the dispatcher comes from
 `:core:common`'s `DispatcherProvider` when the work is not main-safe.
 
-## 3. Stateless screen — previewable, screenshot-testable
+## 6. Stateless screen — previewable, screenshot-testable
 
 ```kotlin
 @Composable
@@ -177,7 +196,7 @@ fun PostListScreen(
 @Preview(showBackground = true)
 @Composable
 private fun PostListScreenPreview() {
-    DemoTheme {
+    MaterialTheme {                           // or the module's own theme wrapper, if it has one
         PostListScreen(                       // literal state: no ViewModel, no LaunchedEffect
             // PostUiModel, never the domain model — that is what `posts` holds.
             uiState = PostListUiState(posts = listOf(PostUiModel(1, "Sample title", "Ringkasan"))),
@@ -190,7 +209,7 @@ private fun PostListScreenPreview() {
 Add a preview per meaningful state (loading, error, empty, content) — they are the cheapest
 regression check this screen has.
 
-## 4. Route — the only stateful composable
+## 7. Route — the only stateful composable
 
 ```kotlin
 @Composable
@@ -206,7 +225,21 @@ fun PostListRoute(
 `collectAsStateWithLifecycle()` from `lifecycle-runtime-compose` is the Compose equivalent of
 `repeatOnLifecycle(STARTED)`. Nothing else belongs in the Route.
 
-## 5. Component — the API guidelines apply in full
+When the screen has a `PostListEffect`, the Route is also the only place that collects it — the
+callback it invokes is a parameter, so the Route still decides nothing itself:
+
+```kotlin
+// Unit as the key on purpose: a real key would re-run on recomposition and collect twice.
+LaunchedEffect(Unit) {
+    viewModel.effects.collect { effect ->
+        when (effect) {
+            is PostListEffect.NavigateToDetail -> onNavigateToDetail(effect.postId)
+        }
+    }
+}
+```
+
+## 8. Component — the API guidelines apply in full
 
 ```kotlin
 @Composable
@@ -243,13 +276,16 @@ object PostCardDefaults {
 }
 ```
 
-## 6. Activity — declared by `:feature`, launcher filter merged by `:app`
+## 9. Activity — declared by `:feature`, launcher filter merged by `:app`
+
+The window theme comes from the manifest; inside `setContent`, wrap in `MaterialTheme` — or in the
+module's own theme wrapper when it already has one. Do not create one here.
 
 ```kotlin
 class PostListActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContent { DemoTheme { PostListRoute() } }
+        setContent { MaterialTheme { PostListRoute() } }
     }
 }
 ```
@@ -260,9 +296,9 @@ class PostListActivity : ComponentActivity() {
 <activity android:name=".postlist.PostListActivity" android:theme="@style/Theme.DemoClaudeAgent" />
 ```
 
-## 7. ViewModel unit test — runs on `testDebugUnitTest`
+## 10. ViewModel unit test — runs on `testDebugUnitTest`
 
-With the 2a seam the test supplies the lambda directly — no fake class needed:
+With the 5a seam the test supplies the lambda directly — no fake class needed:
 
 ```kotlin
 class PostListViewModelTest {
@@ -295,7 +331,7 @@ class PostListViewModelTest {
 Test the state machine: initial state, success, empty success, each failure, and every event.
 Fakes and lambdas over mocks — no mocking library is in the catalog.
 
-## 8. Compose UI test — `androidTest`, needs a device
+## 11. Compose UI test — `androidTest`, needs a device
 
 Import `androidx.compose.ui.test.junit4.v2.createComposeRule` — the old
 `androidx.compose.ui.test.junit4.createComposeRule` is deprecated in the BOM this repo pins.
@@ -310,7 +346,7 @@ class PostListScreenTest {
     fun retry_emits_refresh_event() {
         val events = mutableListOf<PostListEvent>()
         composeRule.setContent {
-            DemoTheme {
+            MaterialTheme {
                 PostListScreen(
                     uiState = PostListUiState(errorMessage = "boom"),
                     onEvent = events::add,
@@ -326,8 +362,10 @@ class PostListScreenTest {
 ```
 
 Driving the stateless screen directly is what keeps this test fast and free of the ViewModel.
+`setContent` may be called only once per test — a second call fails, so a second scenario is a
+second `@Test`.
 
-## 9. Utility — shared logic that is not a UI component
+## 12. Utility — shared logic that is not a UI component
 
 `feature/src/main/java/com/sample/demo/feature/util/QueryFilter.kt`
 

@@ -10,7 +10,8 @@ disable-model-invocation: true
 repository up to a seam. Neither closes the gap, by design — each refuses to fabricate the layer
 below it. **This skill closes it**, once both sides genuinely exist.
 
-Read `@CLAUDE.md` first. This skill adds only what is specific to the join.
+`CLAUDE.md` is already in context and owns the architecture, toolchain, and testing rules — on any
+conflict it wins. This skill adds only what is specific to the join.
 
 ## Before you write code
 
@@ -92,8 +93,7 @@ against the injected fake while the running app still shows an empty screen.
 
 ### 4. Rewrite the tests around a hand-written fake
 
-The lambda the tests passed is gone, so they need a fake repository. Write it by hand — there is no
-mocking library in this repo and you may not add one:
+The lambda the tests passed is gone, so they need a fake repository:
 
 ```kotlin
 private class FakePostRepository(
@@ -123,11 +123,12 @@ Wiring is where a clean module graph usually starts leaking. After the change, v
 Gradle will not catch any of these:
 
 - **`:feature` names only the repository interface, its factory function, and domain models.** No
-  `<X>Dto`, no Retrofit type, nothing from `com.sample.demo.core.network`. `:core:data` depends on
-  `:core:network` with `implementation` precisely so this stays true. Check the imports, not every
-  mention — `grep -rn "^import com.sample.demo.core.network" feature/src/` must come back empty. A
-  plain `grep "core.network"` also hits the KDoc these skills tell you to write ("waiting on
-  `:core:network`"), so it reports a leak that is not there.
+  `<X>Dto`, no Retrofit type, nothing from `:core:data`'s `internal` `remote/` package. There is no
+  separate network module to keep on an `implementation` edge any more, so `internal` is the only
+  thing holding this line — check the imports, not every mention:
+  `grep -rn "^import com.sample.demo.core.data.remote" feature/src/` must come back empty. A plain
+  `grep "remote"` also hits the KDoc these skills tell you to write ("waiting on a wire layer"), so
+  it reports a leak that is not there.
 - **`UiState` never holds a domain model.** `posts` stays `List<PostUiModel>`. Putting `List<Post>`
   in the state saves the mapper today and welds the screen to the domain shape forever.
 - **The domain model does not grow a UI concern.** If the screen needs a formatted date or a
@@ -144,9 +145,9 @@ contract to `suspend fun getPosts(): Result<List<Post>>`:
 Changes:
 
 - `load()` swaps `try`/`catch` for `when (val result = repository.getPosts())`, with
-  `is Result.Success` mapping `result.data` and `is Result.Error` reading the message from the
-  exception. Errors cross boundaries as values — see `@CLAUDE.md`.
-- Failure tests construct a `Result.Error` instead of throwing from the fake.
+  `is Result.Success` mapping `result.data` and `is Result.Failure` reading the message from the
+  exception. Errors cross boundaries as values — see `CLAUDE.md`.
+- Failure tests construct a `Result.Failure` instead of throwing from the fake.
 
 Does **not** change: the mapper, the `Factory`, the shape of `UiState`, the event interface, or the
 screen. If a `Result` migration is pushing you to touch those, the wiring was wrong.
@@ -154,7 +155,7 @@ screen. If a `Result` migration is pushing you to touch those, the wiring was wr
 ## Report honestly
 
 A wired screen that still renders empty is the correct outcome when the layer *below* the repository
-is a seam — in this repo `PostRepositoryImpl.fetchPosts` defaults to `{ emptyList() }` while
-`:core:network` has no API. Say that in your summary. Do not "fix" it by giving the repository
+is a seam — in this repo `PostRepositoryImpl.fetchPosts` defaults to `{ emptyList() }` because
+`:core:data` has no HTTP client. Say that in your summary. Do not "fix" it by giving the repository
 sample data: that is the fabrication both other skills exist to prevent, and it would sit in
 `:core:data` where it is hardest to find later.

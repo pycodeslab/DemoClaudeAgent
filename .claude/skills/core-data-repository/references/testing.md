@@ -14,8 +14,8 @@ construct `PostRepositoryImpl` and implement `PostRemoteDataSource` directly.
 | `<X>Mapper` | a complete DTO maps field-for-field; a DTO with every nullable field `null` yields sensible defaults instead of throwing |
 | `<X>RepositoryImpl` | success maps DTO → domain; a `Failure` is passed through **unchanged**, not re-wrapped or swallowed |
 
-Do not test the domain `data class` itself, and do not re-test `safeApiCall` — that is
-`:core:network`'s test.
+Do not test the domain `data class` itself, and do not re-test `safeApiCall` through the repository —
+it gets its own test alongside the `remote/` package it lives in.
 
 ## Fake data source
 

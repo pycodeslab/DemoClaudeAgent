@@ -178,7 +178,7 @@ private fun load() {
                 }
             }
 
-            is Result.Error -> {
+            is Result.Failure -> {
                 loadedPosts = emptyList()
                 _uiState.update {
                     it.copy(
@@ -193,7 +193,7 @@ private fun load() {
 }
 ```
 
-The fake returns `Result.Success(posts)` / `Result.Error(...)` instead of throwing. `toUiModel`,
+The fake returns `Result.Success(posts)` / `Result.Failure(...)` instead of throwing. `toUiModel`,
 `Factory`, `UiState` and the screen are untouched.
 
 ## Verify
@@ -203,5 +203,5 @@ The fake returns `Result.Success(posts)` / `Result.Error(...)` instead of throwi
 .\gradlew.bat :app:assembleDebug
 ```
 
-Then read for the leaks Gradle cannot see: `grep -r "core.network" feature/src/` empty, and
-`UiState` still holding `List<PostUiModel>`.
+Then read for the leaks Gradle cannot see: `grep -rn "^import com.sample.demo.core.data.remote" feature/src/`
+empty, and `UiState` still holding `List<PostUiModel>`.

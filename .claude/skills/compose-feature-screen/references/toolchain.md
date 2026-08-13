@@ -1,7 +1,7 @@
 # Compose build wiring in this repo
 
 This repo is unusual: **AGP 9 supplies Kotlin itself, there is no Kotlin Gradle plugin**, and
-`@CLAUDE.md` warns that compiler-plugin libraries are ruled out. Compose is the one sanctioned
+`CLAUDE.md` warns that compiler-plugin libraries are ruled out. Compose is the one sanctioned
 exception, and the wiring below is the exact shape that was verified to build here. Reproduce
 it; do not improvise.
 
@@ -87,9 +87,9 @@ cross configurations.
 
 ## Which modules get this
 
-Only `:feature` (and `:app` if it ever hosts a Composable directly). `:core:common`,
-`:core:network` and `:core:data` stay Compose-free; a repository exposing `State` or a
-`@Composable` breaks the layering that `@CLAUDE.md` describes.
+Only `:feature` (and `:app` if it ever hosts a Composable directly). `:core:common` and
+`:core:data` stay Compose-free; a repository exposing `State` or a `@Composable` breaks the
+layering that `CLAUDE.md` describes.
 
 ## Version compatibility
 

@@ -5,8 +5,10 @@ to paste unchanged — delete what a given repository does not need.
 
 Two variants. Pick with the table in `SKILL.md`:
 
-- **A. Canonical** — `:core:common` and `:core:network` are implemented.
-- **B. Seam** — one or both are still empty. Fabricate nothing; leave a function-type parameter.
+- **A. Canonical** — `:core:common` is implemented and this module has an HTTP client with a wire
+  layer in `remote/`.
+- **B. Seam** — one or both are still missing. Fabricate nothing; leave a function-type parameter.
+  **This is today's repo.**
 
 ---
 
@@ -36,7 +38,7 @@ data class Post(
 package com.sample.demo.core.data.mapper
 
 import com.sample.demo.core.data.model.Post
-import com.sample.demo.core.network.model.PostDto
+import com.sample.demo.core.data.remote.PostDto
 
 internal fun PostDto.toDomain(): Post = Post(
     id = id ?: 0,
@@ -54,9 +56,9 @@ is the only place `PostApi` and `safeApiCall` appear. No mapping happens here.
 package com.sample.demo.core.data.datasource
 
 import com.sample.demo.core.common.Result
-import com.sample.demo.core.network.api.PostApi
-import com.sample.demo.core.network.model.PostDto
-import com.sample.demo.core.network.safeApiCall
+import com.sample.demo.core.data.remote.PostApi
+import com.sample.demo.core.data.remote.PostDto
+import com.sample.demo.core.data.remote.safeApiCall
 
 internal interface PostRemoteDataSource {
     suspend fun getPosts(): Result<List<PostDto>>
@@ -82,7 +84,7 @@ package com.sample.demo.core.data.repository
 import com.sample.demo.core.common.Result
 import com.sample.demo.core.data.datasource.PostRemoteDataSourceImpl
 import com.sample.demo.core.data.model.Post
-import com.sample.demo.core.network.NetworkModule
+import com.sample.demo.core.data.remote.PostApi
 
 interface PostRepository {
     suspend fun getPosts(): Result<List<Post>>
@@ -90,7 +92,7 @@ interface PostRepository {
 
 /** The one public, network-free way to obtain a [PostRepository]. */
 fun PostRepository(): PostRepository =
-    PostRepositoryImpl(PostRemoteDataSourceImpl(NetworkModule.createPostApi()))
+    PostRepositoryImpl(PostRemoteDataSourceImpl(PostApi.create()))
 ```
 
 ### A5. Repository implementation — `repository/PostRepositoryImpl.kt`
@@ -135,9 +137,10 @@ when (val result = remote.getPosts()) {
 
 ## B. Seam — a layer below is missing
 
-What today's repo gets: `:core:common` and `:core:network` hold only `.gitkeep`. There is no
-`Result`, no `PostDto`, no `PostApi`, so there is no mapper and no data source to write. Build the
-model, the contract and the impl; leave one function-type parameter where the source will go.
+What today's repo gets: `:core:common` and `:core:data` hold only `.gitkeep`, and `:core:data`
+declares no HTTP client. There is no `Result`, no `PostDto`, no `PostApi`, so there is no mapper and
+no data source to write. Build the model, the contract and the impl; leave one function-type
+parameter where the source will go.
 
 `model/Post.kt` is unchanged from A1.
 
@@ -159,7 +162,7 @@ interface PostRepository {
     suspend fun getPosts(): List<Post>
 }
 
-/** The one public way to obtain a [PostRepository]. Loads nothing until `:core:network` exists. */
+/** The one public way to obtain a [PostRepository]. Loads nothing until a wire layer exists. */
 fun PostRepository(): PostRepository = PostRepositoryImpl()
 ```
 
@@ -171,11 +174,11 @@ package com.sample.demo.core.data.repository
 import com.sample.demo.core.data.model.Post
 
 /**
- * [fetchPosts] is a seam, not a data source. `:core:network` has no `PostApi` or `PostDto` yet, so
- * nothing is provided and the default fetches nothing. When the network layer lands, replace this
- * parameter with `PostRemoteDataSource`, add `mapper/PostMapper.kt`, and map `PostDto` to [Post]
- * here. Deliberately *not* a fake API, a stub DTO or a hardcoded list — those are `:core:network`'s
- * code in the wrong module.
+ * [fetchPosts] is a seam, not a data source. This module has no HTTP client, so there is no
+ * `PostApi` or `PostDto` yet, nothing is provided, and the default fetches nothing. Once a wire
+ * layer lands in `remote/`, replace this parameter with `PostRemoteDataSource`, add
+ * `mapper/PostMapper.kt`, and map `PostDto` to [Post] here. Deliberately *not* a fake API, a stub
+ * DTO or a hardcoded list — inventing those here commits the repo to a network design nobody chose.
  */
 internal class PostRepositoryImpl(
     private val fetchPosts: suspend () -> List<Post> = { emptyList() },
@@ -186,7 +189,7 @@ internal class PostRepositoryImpl(
 ```
 
 Why a function type rather than an interface declared here: an interface plus an implementation *is*
-a network layer, just one in the wrong module. A function type adds no types, keeps the repository
+a network layer, invented before anyone chose one. A function type adds no types, keeps the repository
 fully testable (tests pass a real lambda, including one that throws), and collapses to a single
 constructor parameter when the real data source arrives.
 
