@@ -19,13 +19,7 @@ Terdapat 4 module utama:
 | `:core:data` | repository, data source, mapper, domain model | hanya `.gitkeep` |
 | `:core:common` | utility Kotlin murni, tanpa `android.*` | hanya `.gitkeep` |
 
-Yang membuat repo ini menarik sebagai sample: **test-nya sudah ada, implementasinya belum.**
-`feature/src/test/` berisi `PostListViewModelTest`, `QueryFilterTest`, dan `PostListScreenTest` yang
-memanggil class yang belum pernah ditulis. Test itulah spesifikasinya — nama class, signature
-function, dan perilaku yang diharapkan dibaca dari sana. `AndroidManifest.xml` di `:app` juga sudah
-mendaftarkan `com.sample.demo.feature.postlist.PostListActivity` sebagai launcher activity.
-
-Jadi repo ini adalah situasi nyata yang sering dihadapi: ada kontrak, ada aturan arsitektur, tapi
+Jadi ini dibuat seakan-akan: sudah ada contractnya, sudah ada arsitekturnya, tapi
 lapisan bawahnya belum jadi. Persis kondisi di mana `CLAUDE.md` dan skill membuktikan gunanya.
 
 Toolchain: Java 11, compileSdk/targetSdk 37, minSdk 24, AGP 9.3.1, configuration cache aktif, semua
