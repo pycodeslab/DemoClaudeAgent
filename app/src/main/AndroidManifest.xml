@@ -12,9 +12,17 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.DemoClaudeAgent">
 
-        <!-- No components yet. Feature modules declare their own activities;
-             the app manifest adds the MAIN/LAUNCHER intent-filter for whichever
-             one is the entry point. -->
+        <!-- Feature modules declare their own activities; the app manifest adds the
+             MAIN/LAUNCHER intent-filter for whichever one is the entry point. -->
+        <activity
+            android:name="com.sample.demo.feature.postlist.PostListActivity"
+            android:exported="true"
+            android:theme="@style/Theme.DemoClaudeAgent.Compose">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
 
     </application>
 

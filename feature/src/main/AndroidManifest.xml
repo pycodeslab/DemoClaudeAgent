@@ -1,2 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest />
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <application>
+
+        <!-- No android:exported here — :app owns the MAIN/LAUNCHER filter and merges it in. -->
+        <activity android:name=".postlist.PostListActivity" />
+
+    </application>
+
+</manifest>
