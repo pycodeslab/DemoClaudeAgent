@@ -1,14 +1,12 @@
 # DemoClaudeAgent
 
-Project Android multi-module yang dipakai sebagai **bahan contoh (sample) penggunaan Claude Code** —
-khususnya dua mekanisme yang menentukan seberapa berguna Claude di sebuah repo: `CLAUDE.md` dan
+Project Android multi-module yang dipakai sebagai **Sample penggunaan Claude Code** —
+khususnya dua hal seperti: `CLAUDE.md` dan
 **Agent Skills** (`SKILL.md`).
-
-Kodenya sendiri sengaja dibiarkan minim. Yang menjadi "isi" dari repo ini justru file instruksinya.
 
 ## 1. Penjelasan project
 
-Sebuah skeleton aplikasi Android dengan empat module dan arah dependensi satu arah:
+Terdapat 4 module utama:
 
 ```
 :app  ──►  :feature  ──►  :core:data  ──►  :core:common
@@ -228,21 +226,47 @@ otomatis tunduk pada: Java 11, tidak ada Hilt, satu `StateFlow` per screen, `asS
 `stateIn`, penamaan `onXxxClicked()`, trailing comma, dan test di `src/test/` dengan fake tulis
 tangan.
 
-```mermaid
-flowchart TD
-    A([Sesi Claude Code dimulai<br/>di root repo]) --> B[CLAUDE.md dibaca otomatis]
-    B --> C[Aturan masuk ke context<br/>sebelum prompt pertama]
-    C --> D[/User mengetik prompt/]
-    D --> E{Prompt bertabrakan<br/>dengan CLAUDE.md?}
-    E -- Ya --> F[CLAUDE.md menang<br/>Claude menyebutkan konfliknya]
-    E -- Tidak --> G[Kerjakan sesuai aturan repo]
-    F --> G
-    G --> H[Verifikasi dengan perintah<br/>dari bagian Build and test]
-    H --> I([Hasil konsisten dengan<br/>konvensi repo])
-
-    style B fill:#e8f0fe,stroke:#4285f4
-    style F fill:#fce8e6,stroke:#ea4335
-    style I fill:#e6f4ea,stroke:#34a853
+```
+  ┌──────────────────────────────────────────────────┐
+  │  Sesi Claude Code dimulai di root repo           │
+  └─────────────────────────┬────────────────────────┘
+                            ▼
+  ┌──────────────────────────────────────────────────┐
+  │  CLAUDE.md dibaca OTOMATIS                       │
+  └─────────────────────────┬────────────────────────┘
+                            ▼
+  ┌──────────────────────────────────────────────────┐
+  │  Aturannya sudah ada di context                  │
+  │  sebelum prompt pertama diketik                  │
+  └─────────────────────────┬────────────────────────┘
+                            ▼
+  ┌──────────────────────────────────────────────────┐
+  │  User mengetik prompt                            │
+  └─────────────────────────┬────────────────────────┘
+                            ▼
+                ╱──────────────────────╲
+               ╱  Prompt bentrok        ╲
+               ╲  dengan CLAUDE.md?     ╱
+                ╲─┬─────────────────┬──╱
+               ya │                 │ tidak
+                  ▼                 │
+  ┌──────────────────────────────┐  │
+  │  CLAUDE.md MENANG,           │  │
+  │  konfliknya ikut disebut     │  │
+  └───────────────┬──────────────┘  │
+                  └─────────┬───────┘
+                            ▼
+  ┌──────────────────────────────────────────────────┐
+  │  Kerjakan sesuai aturan repo                     │
+  └─────────────────────────┬────────────────────────┘
+                            ▼
+  ┌──────────────────────────────────────────────────┐
+  │  Verifikasi: gradlew testDebugUnitTest           │
+  └─────────────────────────┬────────────────────────┘
+                            ▼
+  ┌──────────────────────────────────────────────────┐
+  │  Hasil konsisten dengan konvensi repo            │
+  └──────────────────────────────────────────────────┘
 ```
 
 ### ii. Bagaimana `SKILL.md` bekerja
@@ -274,25 +298,61 @@ nama screen diambil dari kalimat permintaan Anda.
 `suspend () -> List<...> = { emptyList() }` → dijalankan `.\gradlew.bat :feature:testDebugUnitTest`
 → dilaporkan bahwa screen sengaja masih kosong karena data layer belum ada.
 
-```mermaid
-flowchart TD
-    A([User mengetik<br/>/compose-feature-screen Login]) --> B[SKILL.md dimuat]
-    B --> C[Argumen dibaca<br/>Login → Login / login / LoginActivity]
-    C --> D{Screen-nya<br/>sudah ada?}
-    D -- Ya --> E[Modifikasi yang ada<br/>jangan buat duplikat]
-    D -- Tidak --> F{Layer di bawah<br/>sudah ada?}
-    F -- Belum --> G[Bangun screen penuh<br/>+ seam function-type<br/>JANGAN karang stub]
-    F -- Sudah --> H[Pakai repository<br/>lewat /wire-feature-to-data]
-    E --> I[Buka references/ seperlunya<br/>templates, api-guidelines]
-    G --> I
-    H --> I
-    I --> J[Tulis kode<br/>satu deklarasi satu file]
-    J --> K[Verifikasi<br/>gradlew testDebugUnitTest]
-    K --> L([Lapor jujur:<br/>layer mana yang absen])
-
-    style B fill:#e8f0fe,stroke:#4285f4
-    style G fill:#fef7e0,stroke:#fbbc04
-    style L fill:#e6f4ea,stroke:#34a853
+```
+  ┌──────────────────────────────────────────────────┐
+  │  User mengetik  /compose-feature-screen Login    │
+  └─────────────────────────┬────────────────────────┘
+                            ▼
+  ┌──────────────────────────────────────────────────┐
+  │  Isi SKILL.md dimuat ke context                  │
+  └─────────────────────────┬────────────────────────┘
+                            ▼
+  ┌──────────────────────────────────────────────────┐
+  │  Argumen dinormalisasi jadi tiga bentuk:         │
+  │  Login  /  login  /  LoginActivity               │
+  └─────────────────────────┬────────────────────────┘
+                            ▼
+                ╱──────────────────────╲
+               ╱  Screen-nya            ╲
+               ╲  sudah ada?            ╱
+                ╲─┬─────────────────┬──╱
+               ya │                 │ tidak
+                  ▼                 │
+  ┌──────────────────────────────┐  │
+  │  Modifikasi yang ada,        │  │
+  │  jangan bikin duplikat       │  │
+  └───────────────┬──────────────┘  │
+                  └─────────┬───────┘
+                            ▼
+                ╱──────────────────────╲
+               ╱  Layer di bawahnya     ╲
+               ╲  (:core:data) ada?     ╱
+                ╲─┬─────────────────┬──╱
+            belum │                 │ sudah — lewat /wire-feature-to-data
+                  ▼                 │
+  ┌──────────────────────────────┐  │
+  │  Bangun screen penuh:        │  │
+  │  seam function-type,         │  │
+  │  JANGAN karang stub          │  │
+  └───────────────┬──────────────┘  │
+                  └─────────┬───────┘
+                            ▼
+  ┌──────────────────────────────────────────────────┐
+  │  Buka references/ seperlunya saja                │
+  │  templates.md, api-guidelines.md                 │
+  └─────────────────────────┬────────────────────────┘
+                            ▼
+  ┌──────────────────────────────────────────────────┐
+  │  Tulis kode — satu deklarasi satu file           │
+  └─────────────────────────┬────────────────────────┘
+                            ▼
+  ┌──────────────────────────────────────────────────┐
+  │  Verifikasi: gradlew :feature:testDebugUnitTest  │
+  └─────────────────────────┬────────────────────────┘
+                            ▼
+  ┌──────────────────────────────────────────────────┐
+  │  Lapor jujur: layer mana yang absen              │
+  └──────────────────────────────────────────────────┘
 ```
 
 ### iii. Keduanya berjalan bersamaan
@@ -301,25 +361,25 @@ Skill tidak menggantikan `CLAUDE.md` — ia menumpang di atasnya. Setiap `SKILL.
 menyatakan bahwa `CLAUDE.md` sudah ada di context dan **menang saat konflik**; skill hanya menambah
 hal yang spesifik untuk pekerjaannya.
 
-```mermaid
-flowchart LR
-    subgraph SELALU["Selalu aktif"]
-        CM["CLAUDE.md<br/>aturan repo<br/>arbiter saat konflik"]
-    end
-    subgraph ONDEMAND["Dimuat saat dipanggil"]
-        S1["/compose-feature-screen<br/>screen di :feature"]
-        S2["/core-data-repository<br/>repository di :core:data"]
-        S3["/wire-feature-to-data<br/>menyambung keduanya"]
-    end
-    CM -.->|"batasan berlaku<br/>untuk semuanya"| S1
-    CM -.-> S2
-    CM -.-> S3
-    S1 --> OUT([Kode yang konsisten<br/>dengan konvensi repo])
-    S2 --> OUT
-    S3 --> OUT
-
-    style CM fill:#e8f0fe,stroke:#4285f4
-    style OUT fill:#e6f4ea,stroke:#34a853
+```
+  ┌─ SELALU AKTIF ───────────────────────────────────┐
+  │                                                  │
+  │  CLAUDE.md  —  aturan repo, arbiter saat konflik │
+  │                                                  │
+  └─────────────────────────┬────────────────────────┘
+                            │  batasannya berlaku untuk semua di bawah
+                            ▼
+  ┌─ DIMUAT SAAT DIPANGGIL ──────────────────────────┐
+  │                                                  │
+  │  /compose-feature-screen  →  screen di :feature  │
+  │  /core-data-repository    →  repo di :core:data  │
+  │  /wire-feature-to-data    →  menyambung keduanya │
+  │                                                  │
+  └─────────────────────────┬────────────────────────┘
+                            ▼
+  ┌──────────────────────────────────────────────────┐
+  │  Kode yang konsisten dengan konvensi repo        │
+  └──────────────────────────────────────────────────┘
 ```
 
 **Aturan praktis mana menaruh apa:**
